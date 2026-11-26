@@ -15,20 +15,20 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang lld make perl zip unzip curl git
+          sudo apt-get install -y build-essential clang lld make perl zip unzip curl git xz-utils
 
-      - name: Install Theos, Linux Toolchain & SDK
+      - name: Setup Theos, Toolchain & SDK
         run: |
-          export THEOS=~/theos
+          export THEOS=$HOME/theos
           git clone --recursive https://github.com/theos/theos.git $THEOS
-          
+
           mkdir -p $THEOS/toolchain/linux/iphone
-          curl -sL https://github.com/sbingner/llvm-project/releases/latest/download/linux-ios-arm64e-clang-toolchain.tar.lzma -o toolchain.tar.lzma || true
-          if [ ! -s toolchain.tar.lzma ]; then
-            curl -sL https://github.com/ProcursusTeam/toolchain/releases/download/2023-07-02/iPhoneOS-arm64-linux-toolchain.tar.xz -o toolchain.tar.xz
-            tar -xf toolchain.tar.xz -C $THEOS/toolchain/linux/iphone --strip-components=1
+          curl -sL https://github.com/sbingner/llvm-project/releases/latest/download/linux-ios-arm64e-clang-toolchain.tar.lzma -o tc.tar.lzma || true
+          if [ -s tc.tar.lzma ]; then
+            tar --lzma -xf tc.tar.lzma -C $THEOS/toolchain/linux/iphone --strip-components=1 || tar --lzma -xf tc.tar.lzma -C $THEOS/toolchain/linux/iphone
           else
-            tar --lzma -xf toolchain.tar.lzma -C $THEOS/toolchain/linux/iphone --strip-components=1
+            curl -sL https://github.com/ProcursusTeam/toolchain/releases/download/2023-07-02/iPhoneOS-arm64-linux-toolchain.tar.xz -o tc.tar.xz
+            tar -xf tc.tar.xz -C $THEOS/toolchain/linux/iphone --strip-components=1 || tar -xf tc.tar.xz -C $THEOS/toolchain/linux/iphone
           fi
 
           mkdir -p $THEOS/sdks
@@ -36,9 +36,16 @@ jobs:
           unzip -q sdks.zip
           mv sdks-master/*.sdk $THEOS/sdks/
 
+          find $THEOS/toolchain -maxdepth 4 -type d -name "bin"
+
       - name: Build Dylib
         run: |
-          export THEOS=~/theos
+          export THEOS=$HOME/theos
+          BIN_DIR=$(find $THEOS/toolchain -type f -name "clang" -printf '%h\n' | head -n 1)
+          echo "Found clang at: $BIN_DIR"
+          if [ -n "$BIN_DIR" ]; then
+            export PATH="$BIN_DIR:$PATH"
+          fi
           make
           mkdir -p output
           find .theos -name "*.dylib" -exec cp {} output/ \;
