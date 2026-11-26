@@ -7,19 +7,25 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Theos & Build Dylib
+      - name: Install dependencies & Theos on Linux
         run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang lld make perl zip unzip curl git fakeroot
           export THEOS=~/theos
           git clone --recursive https://github.com/theos/theos.git $THEOS
-          mkdir -p $THEOS/sdks
-          curl -L https://github.com/theos/sdks/archive/master.zip -o sdks.zip
+          curl -sL https://github.com/theos/sdks/archive/master.zip -o sdks.zip
           unzip -q sdks.zip
+          mkdir -p $THEOS/sdks
           mv sdks-master/*.sdk $THEOS/sdks/
+
+      - name: Build Dylib
+        run: |
+          export THEOS=~/theos
           make package
           mkdir -p output
           find .theos -name "*.dylib" -exec cp {} output/ \;
