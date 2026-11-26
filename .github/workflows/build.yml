@@ -8,25 +8,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image:ghcr.io/theos/theos:latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies & Theos on Linux
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential clang lld make perl zip unzip curl git fakeroot
-          export THEOS=~/theos
-          git clone --recursive https://github.com/theos/theos.git $THEOS
-          curl -sL https://github.com/theos/sdks/archive/master.zip -o sdks.zip
-          unzip -q sdks.zip
-          mkdir -p $THEOS/sdks
-          mv sdks-master/*.sdk $THEOS/sdks/
-
       - name: Build Dylib
         run: |
-          export THEOS=~/theos
-          make package
+          make
           mkdir -p output
           find .theos -name "*.dylib" -exec cp {} output/ \;
 
