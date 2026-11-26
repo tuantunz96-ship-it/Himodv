@@ -12,19 +12,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Theos & SDK
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang lld make perl zip unzip curl git
+
+      - name: Install Theos, Linux Toolchain & SDK
         run: |
           export THEOS=~/theos
           git clone --recursive https://github.com/theos/theos.git $THEOS
+          
+          mkdir -p $THEOS/toolchain/linux/iphone
+          curl -sL https://github.com/sbingner/llvm-project/releases/latest/download/linux-ios-arm64e-clang-toolchain.tar.lzma -o toolchain.tar.lzma || true
+          if [ ! -s toolchain.tar.lzma ]; then
+            curl -sL https://github.com/ProcursusTeam/toolchain/releases/download/2023-07-02/iPhoneOS-arm64-linux-toolchain.tar.xz -o toolchain.tar.xz
+            tar -xf toolchain.tar.xz -C $THEOS/toolchain/linux/iphone --strip-components=1
+          else
+            tar --lzma -xf toolchain.tar.lzma -C $THEOS/toolchain/linux/iphone --strip-components=1
+          fi
+
           mkdir -p $THEOS/sdks
           curl -sL https://github.com/theos/sdks/archive/master.zip -o sdks.zip
           unzip -q sdks.zip
           mv sdks-master/*.sdk $THEOS/sdks/
-          ls -la $THEOS/sdks
+
+      - name: Build Dylib
+        run: |
+          export THEOS=~/theos
+          make
+          mkdir -p output
+          find .theos -name "*.dylib" -exec cp {} output/ \;
+          ls -la output/
 
       - name: Upload Dylib Artifact
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: TuanModAOV-dylib
           path: output/*.dylib
